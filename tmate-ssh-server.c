@@ -144,8 +144,9 @@ static void client_bootstrap(struct tmate_ssh_client *client)
 	ssh_set_auth_methods(client->session, SSH_AUTH_METHOD_PUBLICKEY);
 
 	tmate_debug("Exchanging DH keys");
-	if (ssh_handle_key_exchange(session) < 0)
-		tmate_fatal("Error doing the key exchange");
+	if (ssh_handle_key_exchange(session) < 0) {
+		tmate_fatal("Error doing the key exchange: %s", ssh_get_error(session));
+	}
 
 	mainloop = ssh_event_new();
 	ssh_event_add_session(mainloop, session);
@@ -269,10 +270,19 @@ static ssh_bind prepare_ssh(const char *keys_dir, int port)
 	ssh_bind_options_set(bind, SSH_BIND_OPTIONS_LOG_VERBOSITY, &verbosity);
 
 	sprintf(buffer, "%s/ssh_host_dsa_key", keys_dir);
-	ssh_bind_options_set(bind, SSH_BIND_OPTIONS_DSAKEY, buffer);
+	if (ssh_bind_options_set(bind, SSH_BIND_OPTIONS_DSAKEY, buffer) < 0) {
+		tmate_fatal("Cannot set DSA key: %s", ssh_get_error(bind));
+	}
 
 	sprintf(buffer, "%s/ssh_host_rsa_key", keys_dir);
-	ssh_bind_options_set(bind, SSH_BIND_OPTIONS_RSAKEY, buffer);
+	if (ssh_bind_options_set(bind, SSH_BIND_OPTIONS_RSAKEY, buffer) < 0) {
+		tmate_fatal("Cannot set RSA key: %s", ssh_get_error(bind));
+	}
+
+	sprintf(buffer, "%s/ssh_host_ecdsa_key", keys_dir);
+	if (ssh_bind_options_set(bind, SSH_BIND_OPTIONS_ECDSAKEY, buffer) < 0) {
+		tmate_fatal("Cannot set ECDSA key: %s", ssh_get_error(bind));
+	}
 
 	if (ssh_bind_listen(bind) < 0)
 		tmate_fatal("Error listening to socket: %s\n", ssh_get_error(bind));
